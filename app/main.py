@@ -28,9 +28,16 @@ async def validation_exception_handler(request, exc):
     return JSONResponse(status_code=400, content={"detail": "Invalid upload or form field.", "errors": exc.errors()})
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc):
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
 @app.exception_handler(Exception)
 async def unexpected_exception_handler(request, exc):
-    return JSONResponse(status_code=500, content={"detail": "The server could not process this file. Try a smaller image or a shorter video."})
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": f"Processing failed: {type(exc).__name__}: {str(exc)}"})
 
 
 @app.get("/")
