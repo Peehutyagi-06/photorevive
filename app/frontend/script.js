@@ -64,9 +64,45 @@ enhance.onclick = async () => {
 
   try {
     const response = await fetch("/api/enhance", { method: "POST", body });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || "Could not process file.");
+    const contentType = response.headers.get("content-type") || "";
 
+    if (!response.ok) {
+      let message = "Could not process file.";
+      if (contentType.includes("application/json")) {
+        const error = await response.json();
+        message = error.detail || message;
+      } else {
+        message = await response.text() || message;
+      }
+      throw new Error(message);
+    }
+
+    if (selected.type.startsWith("image/") && contentType.includes("image/png")) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const output = document.getElementById("output");
+      if (output.tagName !== "IMG") output.outerHTML = '<img id="output" alt="Enhanced result">';
+      document.getElementById("output").src = url;
+      document.getElementById("download").href = url;
+      document.getElementById("download").download = "photorevive-enhanced.png";
+
+      const originalWidth = response.headers.get("X-Original-Width") || "";
+      const originalHeight = response.headers.get("X-Original-Height") || "";
+      const enhancedWidth = response.headers.get("X-Enhanced-Width") || "";
+      const enhancedHeight = response.headers.get("X-Enhanced-Height") || "";
+      const quality = response.headers.get("X-Source-Quality") || "";
+      document.getElementById("dimensions").textContent =
+        `Original: ${originalWidth} × ${originalHeight} | Enhanced: ${enhancedWidth} × ${enhancedHeight}`;
+      document.getElementById("quality").textContent = quality ? `Estimated source quality: ${quality}/100` : "";
+      document.getElementById("method").textContent =
+        response.headers.get("X-Enhancement-Method") || "Adaptive image enhancement";
+      result.hidden = false;
+      status.textContent = "Your enhanced image is ready.";
+      result.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
+    const data = await response.json();
     const url = data.download_url + "?v=" + Date.now();
     const output = document.getElementById("output");
     if (data.kind === "video") {

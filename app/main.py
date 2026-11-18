@@ -5,9 +5,10 @@ from io import BytesIO
 import cv2
 import numpy as np
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, UnidentifiedImageError
+from fastapi.exceptions import RequestValidationError
 
 BASE = Path(__file__).resolve().parent
 FRONTEND = BASE / "frontend"
@@ -20,6 +21,16 @@ app.mount("/outputs", StaticFiles(directory=OUTPUTS), name="outputs")
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v", "video/webm"}
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(status_code=400, content={"detail": "Invalid upload or form field.", "errors": exc.errors()})
+
+
+@app.exception_handler(Exception)
+async def unexpected_exception_handler(request, exc):
+    return JSONResponse(status_code=500, content={"detail": "The server could not process this file. Try a smaller image or a shorter video."})
 
 
 @app.get("/")
@@ -70,10 +81,16 @@ def enhance_image(rgb: np.ndarray, scale: int, strength: float) -> np.ndarray:
     result = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
     gray = cv2.cvtColor(result, cv2.COLOR_RGB2GRAY)
-    blurred = cv2.GaussianBlur(gray, (0, 0), 1.15)
-    mask = cv2.Laplacian(blurred, cv2.CV_32F)
-    amount = 0.35 + strength * 0.55
-    sharpened = result.astype(np.float32) + amount * cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+    blurred = cv2.GaussianBlur(gray, (0, 0), 1.2)
+    detail_mask = cv2.subtract(gray, blurred)
+
+    edges = cv2.morphologyEx(gray, cv2.MORPH_GRADIENT, np.ones((3, 3), np.uint8))
+    edge_weight = cv2.normalize(edges, None, 0, 1, cv2.NORM_MINMAX).astype(np.float32)
+    edge_weight = cv2.GaussianBlur(edge_weight, (5, 5), 0)
+    amount = 0.55 + strength * 0.95
+    rgb_detail = cv2.cvtColor(detail_mask, cv2.COLOR_GRAY2RGB)
+    weighted_detail = rgb_detail.astype(np.float32) * edge_weight[:, :, None]
+    sharpened = result.astype(np.float32) + amount * weighted_detail
     return np.clip(sharpened, 0, 255).astype(np.uint8)
 
 
@@ -116,16 +133,19 @@ async def enhance(
         if not ok:
             raise HTTPException(500, "Could not encode the enhanced image.")
         (OUTPUTS / name).write_bytes(encoded.tobytes())
-        return {
-            "kind": "image",
-            "original_width": width,
-            "original_height": height,
-            "enhanced_width": width * scale,
-            "enhanced_height": height * scale,
-            "method": "Adaptive OpenCV restoration: denoise, edge enhancement and local contrast",
-            "quality": score,
-            "download_url": f"/outputs/{name}",
-        }
+        return Response(
+            content=encoded.tobytes(),
+            media_type="image/png",
+            headers={
+                "Content-Disposition": 'inline; filename="photorevive-enhanced.png"',
+                "X-Original-Width": str(width),
+                "X-Original-Height": str(height),
+                "X-Enhanced-Width": str(width * scale),
+                "X-Enhanced-Height": str(height * scale),
+                "X-Source-Quality": str(score["estimated_quality"]),
+                "X-Enhancement-Method": "Adaptive denoise, edge-aware detail and local contrast",
+            },
+        )
 
     if content_type in VIDEO_TYPES:
         source_name = f"source_{uuid4().hex}{Path(file.filename or 'video.mp4').suffix.lower()}"
@@ -206,3 +226,19 @@ async def enhance(
         }
 
     raise HTTPException(400, "Upload a JPG, PNG, WEBP, MP4, MOV or WEBM file.")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": [{"loc": ["body"], "msg": "Invalid request body", "type": "value_error"}]},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
