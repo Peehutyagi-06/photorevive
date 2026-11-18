@@ -12,12 +12,11 @@ from fastapi.exceptions import RequestValidationError
 
 BASE = Path(__file__).resolve().parent
 FRONTEND = BASE / "frontend"
-OUTPUTS = BASE / "outputs"
-OUTPUTS.mkdir(exist_ok=True)
+OUTPUTS = Path("/tmp") / "photorevive"
+OUTPUTS.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="PhotoRevive API")
 app.mount("/static", StaticFiles(directory=FRONTEND), name="static")
-app.mount("/outputs", StaticFiles(directory=OUTPUTS), name="outputs")
 
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 VIDEO_TYPES = {"video/mp4", "video/quicktime", "video/x-m4v", "video/webm"}
@@ -219,33 +218,20 @@ async def enhance(
         if quality_sum:
             samples = max(1, (processed + 29) // 30)
             quality = {key: round(value / samples) if key == "estimated_quality" else round(value / samples, 1) for key, value in quality_sum.items()}
-        return {
-            "kind": "video",
-            "original_width": int(first.shape[1]),
-            "original_height": int(first.shape[0]),
-            "enhanced_width": out_w,
-            "enhanced_height": out_h,
-            "processed_frames": processed,
-            "duration_seconds": round(duration, 1),
-            "method": "Adaptive OpenCV per-frame restoration",
-            "quality": quality,
-            "download_url": f"/outputs/{name}",
-        }
+        video_bytes = output_path.read_bytes()
+        output_path.unlink(missing_ok=True)
+        return Response(
+            content=video_bytes,
+            media_type="video/mp4",
+            headers={
+                "Content-Disposition": 'inline; filename="photorevive-enhanced.mp4"',
+                "X-Original-Width": str(int(first.shape[1])),
+                "X-Original-Height": str(int(first.shape[0])),
+                "X-Enhanced-Width": str(out_w),
+                "X-Enhanced-Height": str(out_h),
+                "X-Processed-FRAMES": str(processed),
+                "X-Source-Quality": str(quality["estimated_quality"] if quality else ""),
+            },
+        )
 
     raise HTTPException(400, "Upload a JPG, PNG, WEBP, MP4, MOV or WEBM file.")
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=422,
-        content={"detail": [{"loc": ["body"], "msg": "Invalid request body", "type": "value_error"}]},
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"},
-    )

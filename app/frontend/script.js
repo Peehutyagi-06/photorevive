@@ -102,6 +102,30 @@ enhance.onclick = async () => {
       return;
     }
 
+    if (selected.type.startsWith("video/") && contentType.includes("video/mp4")) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      document.getElementById("output").outerHTML = '<video id="output" controls></video>';
+      document.getElementById("output").src = url;
+      document.getElementById("download").href = url;
+      document.getElementById("download").download = "photorevive-enhanced.mp4";
+
+      const originalWidth = response.headers.get("X-Original-Width") || "";
+      const originalHeight = response.headers.get("X-Original-Height") || "";
+      const enhancedWidth = response.headers.get("X-Enhanced-Width") || "";
+      const enhancedHeight = response.headers.get("X-Enhanced-Height") || "";
+      const frames = response.headers.get("X-Processed-FRAMES") || "";
+      const quality = response.headers.get("X-Source-Quality") || "";
+      document.getElementById("dimensions").textContent =
+        `Original: ${originalWidth} × ${originalHeight} | Enhanced: ${enhancedWidth} × ${enhancedHeight} | Frames: ${frames}`;
+      document.getElementById("quality").textContent = quality ? `Estimated source quality: ${quality}/100` : "";
+      document.getElementById("method").textContent = "Adaptive per-frame denoise, edge detail and local contrast";
+      result.hidden = false;
+      status.textContent = "Your enhanced video is ready.";
+      result.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+
     const data = await response.json();
     const url = data.download_url + "?v=" + Date.now();
     const output = document.getElementById("output");
