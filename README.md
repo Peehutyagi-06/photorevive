@@ -1,41 +1,40 @@
-# PhotoRevive — Local Image & Video Enhancement
+# PhotoRevive
 
-This is a beginner-friendly first version: FastAPI (Python) backend + plain HTML/CSS/JavaScript frontend. It deliberately avoids React, NumPy, Docker, PostgreSQL and Homebrew.
+PhotoRevive is a local FastAPI image and video restoration studio built with a plain HTML, CSS, and JavaScript frontend.
 
-## What works
-- Upload JPG, PNG or WEBP (max 10 MB)
-- Validate image files on the backend
-- Enlarge the image to 4× width and height
-- Preview and download the result
+## Features
 
-**Important:** this starter uses Pillow Lanczos resizing. It is not Real-ESRGAN and does not invent AI details. Once this runs, we can add the pretrained AI model as a separate step.
+- JPG, PNG, and WEBP image enhancement
+- MP4, MOV, and WEBM video enhancement
+- 2× and 4× output scaling
+- Adjustable detail strength
+- Adaptive denoising, edge sharpening, and local contrast enhancement
+- Source-quality estimation
+- Original previews and downloadable enhanced results
 
-## Run on Mac
-Open VS Code terminal in the folder containing `requirements.txt`.
+Image processing uses Pillow, NumPy, and OpenCV. It is classical restoration, not generative AI or Real-ESRGAN.
 
-1. Check Python:
-   `python3 --version`
-2. Create environment:
-   `python3 -m venv .venv`
-3. Activate it:
-   `source .venv/bin/activate`
-4. Install packages:
-   `python -m pip install --upgrade pip`
-   `python -m pip install -r requirements.txt`
-5. Start:
-   `python -m uvicorn app.main:app --reload`
-6. Open http://127.0.0.1:8000
+## Run locally
 
-API documentation: http://127.0.0.1:8000/docs
-Health check: http://127.0.0.1:8000/api/health
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+```
 
-Stop the server with Control+C.
+Open http://127.0.0.1:8000.
 
-## Structure
-- `app/main.py` — backend
-- `app/frontend/index.html` — page
-- `app/frontend/style.css` — design
-- `app/frontend/script.js` — upload and result interactions
-- `requirements.txt` — four Python packages
+## Deploy
 
-If Python is not installed, install Python 3.11 from https://www.python.org/downloads/macos/, then reopen VS Code. No Homebrew is required.
+This repository includes `render.yaml` for Render.com and `Procfile` for compatible Python hosts.
+
+1. Push the repository to GitHub.
+2. Create a new Render Web Service from the repository.
+3. Render detects `render.yaml` and installs `requirements.txt`.
+4. Use the generated HTTPS URL.
+
+## API
+
+- `GET /api/health` — service status
+- `POST /api/enhance` — enhance an uploaded image or video
