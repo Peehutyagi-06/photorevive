@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PhotoRevive</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header><a class="logo" href="/">PhotoRevive<span>.</span></a><small>IMAGE ENHANCEMENT STUDIO</small></header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">BRING YOUR PHOTOS BACK TO LIFE</p>
+      <h1>Every detail deserves<br><em>a second look.</em></h1>
+    </section>
+    <section class="panel">
+      <div class="upload">
+        <div class="symbol">↑</div>
+        <h2>Upload media</h2>
+        <p>JPG, PNG, WEBP, MP4, MOV or WEBM · Maximum 100 MB</p>
+        <input id="file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" hidden>
+        <button id="choose" class="light">Choose a file</button>
+        <p id="filename" class="muted">No image selected</p>
+      </div>
+      <div id="preview" class="preview" hidden>
+        <h2 id="preview-title">Your original</h2>
+        <img id="original" alt="Original preview">
+        <video id="video-preview" controls hidden></video>
+        <div class="controls">
+          <label>Output scale
+            <select id="scale"><option value="2">2×</option><option value="4" selected>4×</option></select>
+          </label>
+          <label>Detail strength
+            <input id="strength" type="range" min="0" max="100" value="75">
+          </label>
+        </div>
+        <button id="enhance">Enhance 4×</button>
+      </div>
+    </section>
+    <p id="status" role="status"></p>
+    <section id="result" class="result" hidden>
+      <div class="result-title"><h2>Enhanced result</h2><a id="download" download="photorevive.png">Download</a></div>
+      <img id="output" alt="Enhanced result">
+      <p id="dimensions"></p>
+      <p id="quality" class="quality"></p>
+      <p id="method" class="note"></p>
+    </section>
+  </main>
+  <footer>PhotoRevive · Image Super-Resolution Project</footer>
+  <script src="/static/script.js"></script>
+</body>
+</html>
